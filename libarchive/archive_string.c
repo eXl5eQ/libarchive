@@ -374,7 +374,7 @@ archive_wstrncat(struct archive_wstring *as, const wchar_t *p, size_t n)
 struct archive_string *
 archive_strcat(struct archive_string *as, const void *p)
 {
-	/* strcat is just strncat without an effective limit. 
+	/* strcat is just strncat without an effective limit.
 	 * Assert that we'll never get called with a source
 	 * string over 16MB.
 	 * TODO: Review all uses of strcat in the source
@@ -867,7 +867,7 @@ archive_string_append_from_wcs(struct archive_string *as,
 static struct archive_string_conv *
 find_sconv_object(struct archive *a, const char *fc, const char *tc)
 {
-	struct archive_string_conv *sc; 
+	struct archive_string_conv *sc;
 
 	if (a == NULL)
 		return (NULL);
@@ -886,7 +886,7 @@ find_sconv_object(struct archive *a, const char *fc, const char *tc)
 static void
 add_sconv_object(struct archive *a, struct archive_string_conv *sc)
 {
-	struct archive_string_conv **psc; 
+	struct archive_string_conv **psc;
 
 	/* Add a new sconv to sconv list. */
 	psc = &(a->sconv);
@@ -1128,7 +1128,7 @@ static struct archive_string_conv *
 create_sconv_object(const char *fc, const char *tc,
     unsigned current_codepage, int flag)
 {
-	struct archive_string_conv *sc; 
+	struct archive_string_conv *sc;
 
 	sc = calloc(1, sizeof(*sc));
 	if (sc == NULL)
@@ -1818,8 +1818,8 @@ archive_string_default_conversion_for_write(struct archive *a)
 void
 archive_string_conversion_free(struct archive *a)
 {
-	struct archive_string_conv *sc; 
-	struct archive_string_conv *sc_next; 
+	struct archive_string_conv *sc;
+	struct archive_string_conv *sc_next;
 
 	for (sc = a->sconv; sc != NULL; sc = sc_next) {
 		sc_next = sc->next;
@@ -2555,7 +2555,7 @@ utf16_to_unicode(uint32_t *pwc, const char *s, size_t n, int be)
 	else
 		uc = archive_le16dec(utf16);
 	utf16 += 2;
-		
+
 	/* If this is a surrogate pair, assemble the full code point.*/
 	if (IS_HIGH_SURROGATE_LA(uc)) {
 		unsigned uc2;
@@ -3860,6 +3860,13 @@ archive_mstring_copy(struct archive_mstring *dest, struct archive_mstring *src)
 	archive_wstring_copy(&(dest->aes_wcs), &(src->aes_wcs));
 }
 
+void
+archive_mstring_swap(struct archive_mstring *a, struct archive_mstring *b) {
+	struct archive_mstring tmp = *a;
+	*a = *b;
+	*b = tmp;
+}
+
 int
 archive_mstring_get_utf8(struct archive *a, struct archive_mstring *aes,
   const char **p)
@@ -4187,7 +4194,7 @@ archive_mstring_copy_mbs_len_l(struct archive_mstring *aes,
 
 		/*
 		 * Translate multi-bytes from some character-set to UTF-8.
-		 */ 
+		 */
 		sc->cd = sc->cd_w;
 		r = archive_strncpy_l(&(aes->aes_utf8), mbs, len, sc);
 		sc->cd = cd;
@@ -4199,7 +4206,7 @@ archive_mstring_copy_mbs_len_l(struct archive_mstring *aes,
 
 		/*
 		 * Append the UTF-8 string into wstring.
-		 */ 
+		 */
 		flag = sc->flag;
 		sc->flag &= ~(SCONV_NORMALIZATION_C
 				| SCONV_TO_UTF16| SCONV_FROM_UTF16);
@@ -4303,4 +4310,100 @@ archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
 	aes->aes_set = AES_SET_UTF8 | AES_SET_WCS | AES_SET_MBS;
 
 	return (0);
+}
+
+static int
+replace_backslash_utf8(struct archive_mstring *dst, struct archive_string *src, char c)
+{
+	char *p = src->s;
+	int r = ARCHIVE_OK;
+	int in_place = &dst->aes_utf8 == src;
+
+	while ((p = strchr(p, '\\')) != NULL) {
+		if (r == 0) {
+			r = 1;
+			if (!in_place) {
+				dst->aes_set = AES_SET_UTF8;
+				dst->aes_utf8.length = 0;
+				if (archive_string_append(&dst->aes_utf8, src->s, src->length) == NULL)
+					return (ARCHIVE_FATAL);
+				p += dst->aes_utf8.s - src->s;
+			}
+		}
+		*p = c;
+	}
+	return (r);
+}
+
+static int
+replace_backslash_wcs(struct archive_mstring *dst, struct archive_wstring *src, char c)
+{
+	wchar_t *p = src->s;
+	int r = ARCHIVE_OK;
+	int in_place = &dst->aes_wcs == src;
+
+	while ((p = wcschr(p, L'\\')) != NULL) {
+		if (r == 0) {
+			r = 1;
+			if (!in_place) {
+				dst->aes_set = AES_SET_WCS;
+				dst->aes_wcs.length = 0;
+				if (archive_wstring_append(&dst->aes_wcs, src->s, src->length) == NULL)
+					return (ARCHIVE_FATAL);
+				p += dst->aes_wcs.s - src->s;
+			}
+		}
+		*p = c;
+	}
+	return (r);
+}
+
+static int
+replace_backslash_mbs(struct archive_mstring *dst, struct archive_string *src, char c)
+{
+	char *p = src->s;
+	int r = ARCHIVE_OK, mbs = 0;
+	int in_place = &dst->aes_mbs == src;
+
+	while (*p) {
+		if ((unsigned char) *p > 127)
+			mbs = 1;
+		else if (*p == '\\') {
+			/* If the input is not pure ASCII, fallback to wcs. */
+			if (mbs) {
+				archive_wstring_empty(&dst->aes_wcs);
+				if (archive_wstring_append_from_mbs(&dst->aes_wcs, src->s, src->length) == 0) {
+					dst->aes_set = AES_SET_WCS;
+					return replace_backslash_wcs(dst, &dst->aes_wcs, c);
+				}
+				errno = EINVAL;
+				return (ARCHIVE_FAILED);
+			}
+			if (r == 0) {
+				r = 1;
+				if (!in_place) {
+					dst->aes_set = AES_SET_MBS;
+					dst->aes_mbs.length = 0;
+					if (archive_string_append(&dst->aes_mbs, src->s, src->length) == NULL)
+						return (ARCHIVE_FATAL);
+					p += dst->aes_mbs.s - src->s;
+				}
+			}
+			*p = c;
+		}
+		p++;
+	}
+	return (r);
+}
+
+int
+archive_mstring_replace_backslash(struct archive_mstring *dst, struct archive_mstring *src, char c)
+{
+	if (src->aes_set & AES_SET_UTF8)
+		return replace_backslash_utf8(dst, &src->aes_utf8, c);
+	if (src->aes_set & AES_SET_WCS)
+		return replace_backslash_wcs(dst, &src->aes_wcs, c);
+	if (src->aes_set & AES_SET_MBS)
+		return replace_backslash_mbs(dst, &src->aes_mbs, c);
+	return (ARCHIVE_OK);
 }

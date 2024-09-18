@@ -278,7 +278,7 @@ format_int(char *t, int64_t i)
 {
 	uint64_t ui;
 
-	if (i < 0) 
+	if (i < 0)
 		ui = (i == INT64_MIN) ? (uint64_t)(INT64_MAX) + 1 : (uint64_t)(-i);
 	else
 		ui = i;
@@ -439,7 +439,7 @@ get_entry_hardlink(struct archive_write *a, struct archive_entry *entry,
     const char **name, size_t *length, struct archive_string_conv *sc)
 {
 	int r;
-	
+
 	r = archive_entry_hardlink_l(entry, name, length, sc);
 	if (r != 0) {
 		if (errno == ENOMEM) {
@@ -688,9 +688,6 @@ archive_write_pax_header(struct archive_write *a,
 					archive_wstring_free(&ws);
 					return(ARCHIVE_FATAL);
 				}
-				/* Should we keep '\' ? */
-				if (wp[path_length -1] == L'\\')
-					path_length--;
 				archive_wstrncpy(&ws, wp, path_length);
 				archive_wstrappend_wchar(&ws, L'/');
 				archive_entry_copy_pathname_w(
@@ -717,15 +714,6 @@ archive_write_pax_header(struct archive_write *a,
 					archive_string_free(&as);
 					return(ARCHIVE_FATAL);
 				}
-#if defined(_WIN32) && !defined(__CYGWIN__)
-				/* NOTE: This might break the pathname
-				 * if the current code page is CP932 and
-				 * the pathname includes a character '\'
-				 * as a part of its multibyte pathname. */
-				if (p[strlen(p) -1] == '\\')
-					path_length--;
-				else
-#endif
 				archive_strncpy(&as, p, path_length);
 				archive_strappend_char(&as, '/');
 				archive_entry_copy_pathname(
@@ -826,15 +814,7 @@ archive_write_pax_header(struct archive_write *a,
 	}
 
 	/* Copy entry so we can modify it as needed. */
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Make sure the path separators in pathname, hardlink and symlink
-	 * are all slash '/', not the Windows path separator '\'. */
-	entry_main = __la_win_entry_in_posix_pathseparator(entry_original);
-	if (entry_main == entry_original)
-		entry_main = archive_entry_clone(entry_original);
-#else
 	entry_main = archive_entry_clone(entry_original);
-#endif
 	if (entry_main == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate pax data");
@@ -1043,7 +1023,7 @@ archive_write_pax_header(struct archive_write *a,
 			else {
 				/* Otherwise, has non-ASCII characters; update the paths to
 				 * however they got decoded above */
-				if (hardlink != NULL) 
+				if (hardlink != NULL)
 					archive_entry_set_hardlink(entry_main, linkpath);
 				else
 					archive_entry_set_symlink(entry_main, linkpath);

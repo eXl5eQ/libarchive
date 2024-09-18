@@ -237,8 +237,7 @@ static int mtree_entry_new(struct archive_write *, struct archive_entry *,
 	struct mtree_entry **);
 static void mtree_entry_register_free(struct mtree_writer *);
 static void mtree_entry_register_init(struct mtree_writer *);
-static int mtree_entry_setup_filenames(struct archive_write *,
-	struct mtree_entry *, struct archive_entry *);
+static int mtree_entry_setup_filenames(struct mtree_entry *, struct archive_entry *);
 static int mtree_entry_tree_add(struct archive_write *, struct mtree_entry **);
 static void sum_init(struct mtree_writer *);
 static void sum_update(struct mtree_writer *, const void *, size_t);
@@ -789,7 +788,7 @@ mtree_entry_new(struct archive_write *a, struct archive_entry *entry,
 		return (ARCHIVE_FATAL);
 	}
 
-	r = mtree_entry_setup_filenames(a, me, entry);
+	r = mtree_entry_setup_filenames(me, entry);
 	if (r < ARCHIVE_WARN) {
 		mtree_entry_free(me);
 		*m_entry = NULL;
@@ -1183,7 +1182,7 @@ write_mtree_entry_tree(struct archive_write *a)
 				break;
 			}
 		}
-	} while (np != np->parent); 
+	} while (np != np->parent);
 
 	return (ARCHIVE_OK);
 }
@@ -1665,49 +1664,11 @@ mtree_entry_cmp_key(const struct archive_rb_node *n, const void *key)
 	return (strcmp((const char *)key, e->basename.s));
 }
 
-#if defined(_WIN32) || defined(__CYGWIN__)
-static int
-cleanup_backslash_1(char *p)
-{
-	int mb, dos;
-
-	mb = dos = 0;
-	while (*p) {
-		if (*(unsigned char *)p > 127)
-			mb = 1;
-		if (*p == '\\') {
-			/* If we have not met any multi-byte characters,
-			 * we can replace '\' with '/'. */
-			if (!mb)
-				*p = '/';
-			dos = 1;
-		}
-		p++;
-	}
-	if (!mb || !dos)
-		return (0);
-	return (-1);
-}
-
-static void
-cleanup_backslash_2(wchar_t *p)
-{
-
-	/* Convert a path-separator from '\' to  '/' */
-	while (*p != L'\0') {
-		if (*p == L'\\')
-			*p = L'/';
-		p++;
-	}
-}
-#endif
-
 /*
  * Generate a parent directory name and a base name from a pathname.
  */
 static int
-mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
-    struct archive_entry *entry)
+mtree_entry_setup_filenames(struct mtree_entry *file, struct archive_entry *entry)
 {
 	const char *pathname;
 	char *p, *dirname, *slash;
@@ -1715,33 +1676,6 @@ mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
 	int ret = ARCHIVE_OK;
 
 	archive_strcpy(&file->pathname, archive_entry_pathname(entry));
-#if defined(_WIN32) || defined(__CYGWIN__)
-	/*
-	 * Convert a path-separator from '\' to  '/'
-	 */
-	if (cleanup_backslash_1(file->pathname.s) != 0) {
-		const wchar_t *wp = archive_entry_pathname_w(entry);
-		struct archive_wstring ws;
-
-		if (wp != NULL) {
-			int r;
-			archive_string_init(&ws);
-			archive_wstrcpy(&ws, wp);
-			cleanup_backslash_2(ws.s);
-			archive_string_empty(&(file->pathname));
-			r = archive_string_append_from_wcs(&(file->pathname),
-			    ws.s, ws.length);
-			archive_wstring_free(&ws);
-			if (r < 0 && errno == ENOMEM) {
-				archive_set_error(&a->archive, ENOMEM,
-				    "Can't allocate memory");
-				return (ARCHIVE_FATAL);
-			}
-		}
-	}
-#else
-	(void)a; /* UNUSED */
-#endif
 	pathname =  file->pathname.s;
 	if (strcmp(pathname, ".") == 0) {
 		archive_strcpy(&file->basename, ".");
@@ -1909,9 +1843,9 @@ mtree_entry_create_virtual_dir(struct archive_write *a, const char *pathname,
 static void
 mtree_entry_register_add(struct mtree_writer *mtree, struct mtree_entry *file)
 {
-        file->next = NULL;
-        *mtree->file_list.last = file;
-        mtree->file_list.last = &(file->next);
+	file->next = NULL;
+	*mtree->file_list.last = file;
+	mtree->file_list.last = &(file->next);
 }
 
 static void

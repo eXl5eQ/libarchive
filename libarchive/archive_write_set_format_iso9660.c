@@ -1369,9 +1369,9 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 			    !(value[0] >= '0' && value[0] <= '9') ||
 			    value[1] != '\0')
 				goto invalid_value;
-                	iso9660->zisofs.compression_level = value[0] - '0';
+			iso9660->zisofs.compression_level = value[0] - '0';
 			iso9660->opt.compression_level = 1;
-                	return (ARCHIVE_OK);
+			return (ARCHIVE_OK);
 #else
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_MISC,
@@ -4664,43 +4664,6 @@ isofile_free(struct isofile *file)
 	free(file);
 }
 
-#if defined(_WIN32) || defined(__CYGWIN__)
-static int
-cleanup_backslash_1(char *p)
-{
-	int mb, dos;
-
-	mb = dos = 0;
-	while (*p) {
-		if (*(unsigned char *)p > 127)
-			mb = 1;
-		if (*p == '\\') {
-			/* If we have not met any multi-byte characters,
-			 * we can replace '\' with '/'. */
-			if (!mb)
-				*p = '/';
-			dos = 1;
-		}
-		p++;
-	}
-	if (!mb || !dos)
-		return (0);
-	return (-1);
-}
-
-static void
-cleanup_backslash_2(wchar_t *p)
-{
-
-	/* Convert a path-separator from '\' to  '/' */
-	while (*p != L'\0') {
-		if (*p == L'\\')
-			*p = L'/';
-		p++;
-	}
-}
-#endif
-
 /*
  * Generate a parent directory name and a base name from a pathname.
  */
@@ -4816,31 +4779,6 @@ isofile_gen_utility_names(struct archive_write *a, struct isofile *file)
 	}
 
 	archive_strcpy(&(file->parentdir), pathname);
-#if defined(_WIN32) || defined(__CYGWIN__)
-	/*
-	 * Convert a path-separator from '\' to  '/'
-	 */
-	if (cleanup_backslash_1(file->parentdir.s) != 0) {
-		const wchar_t *wp = archive_entry_pathname_w(file->entry);
-		struct archive_wstring ws;
-
-		if (wp != NULL) {
-			int r;
-			archive_string_init(&ws);
-			archive_wstrcpy(&ws, wp);
-			cleanup_backslash_2(ws.s);
-			archive_string_empty(&(file->parentdir));
-			r = archive_string_append_from_wcs(&(file->parentdir),
-			    ws.s, ws.length);
-			archive_wstring_free(&ws);
-			if (r < 0 && errno == ENOMEM) {
-				archive_set_error(&a->archive, ENOMEM,
-				    "Can't allocate memory");
-				return (ARCHIVE_FATAL);
-			}
-		}
-	}
-#endif
 
 	len = file->parentdir.length;
 	p = dirname = file->parentdir.s;
@@ -4929,34 +4867,6 @@ isofile_gen_utility_names(struct archive_write *a, struct isofile *file)
 		/* Convert symlink name too. */
 		pathname = archive_entry_symlink(file->entry);
 		archive_strcpy(&(file->symlink),  pathname);
-#if defined(_WIN32) || defined(__CYGWIN__)
-		/*
-		 * Convert a path-separator from '\' to  '/'
-		 */
-		if (archive_strlen(&(file->symlink)) > 0 &&
-		    cleanup_backslash_1(file->symlink.s) != 0) {
-			const wchar_t *wp =
-			    archive_entry_symlink_w(file->entry);
-			struct archive_wstring ws;
-
-			if (wp != NULL) {
-				int r;
-				archive_string_init(&ws);
-				archive_wstrcpy(&ws, wp);
-				cleanup_backslash_2(ws.s);
-				archive_string_empty(&(file->symlink));
-				r = archive_string_append_from_wcs(
-				    &(file->symlink),
-				    ws.s, ws.length);
-				archive_wstring_free(&ws);
-				if (r < 0 && errno == ENOMEM) {
-					archive_set_error(&a->archive, ENOMEM,
-					    "Can't allocate memory");
-					return (ARCHIVE_FATAL);
-				}
-			}
-		}
-#endif
 	}
 	/*
 	 * - Count up directory elements.

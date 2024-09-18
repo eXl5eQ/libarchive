@@ -220,6 +220,7 @@ struct archive_mstring {
 
 void	archive_mstring_clean(struct archive_mstring *);
 void	archive_mstring_copy(struct archive_mstring *dest, struct archive_mstring *src);
+void	archive_mstring_swap(struct archive_mstring *, struct archive_mstring *);
 int archive_mstring_get_mbs(struct archive *, struct archive_mstring *, const char **);
 int archive_mstring_get_utf8(struct archive *, struct archive_mstring *, const char **);
 int archive_mstring_get_wcs(struct archive *, struct archive_mstring *, const wchar_t **);
@@ -235,6 +236,7 @@ int	archive_mstring_copy_wcs_len(struct archive_mstring *,
 int	archive_mstring_copy_mbs_len_l(struct archive_mstring *,
 	    const char *mbs, size_t, struct archive_string_conv *);
 int     archive_mstring_update_utf8(struct archive *, struct archive_mstring *aes, const char *utf8);
+int		archive_mstring_replace_backslash(struct archive_mstring *dst, struct archive_mstring *src, char c);
 
 
 #endif

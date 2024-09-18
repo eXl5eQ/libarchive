@@ -199,9 +199,9 @@ struct file {
 	}			 children;
 
 	/* For making a directory tree. */
-        struct archive_string    parentdir;
-        struct archive_string    basename;
-        struct archive_string    symlink;
+	struct archive_string    parentdir;
+	struct archive_string    basename;
+	struct archive_string    symlink;
 
 	int			 ea_idx;
 	struct {
@@ -209,7 +209,7 @@ struct file {
 		struct heap_data **last;
 	}			 xattr;
 	struct heap_data	 data;
-        struct archive_string    script;
+	struct archive_string    script;
 
 	unsigned int		 virtual:1;
 	unsigned int		 dir:1;
@@ -2041,23 +2041,6 @@ file_find_child(struct file *parent, const char *child_name)
 	return (np);
 }
 
-#if defined(_WIN32) || defined(__CYGWIN__)
-static void
-cleanup_backslash(char *utf8, size_t len)
-{
-
-	/* Convert a path-separator from '\' to  '/' */
-	while (*utf8 != '\0' && len) {
-		if (*utf8 == '\\')
-			*utf8 = '/';
-		++utf8;
-		--len;
-	}
-}
-#else
-#define cleanup_backslash(p, len)	/* nop */
-#endif
-
 /*
  * Generate a parent directory name and a base name from a pathname.
  */
@@ -2094,10 +2077,6 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 	archive_strncpy(&(file->parentdir), pp, len);
 	len = file->parentdir.length;
 	p = dirname = file->parentdir.s;
-	/*
-	 * Convert a path-separator from '\' to  '/'
-	 */
-	cleanup_backslash(p, len);
 
 	/*
 	 * Remove leading '/', '../' and './' elements
@@ -2196,7 +2175,6 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 			r = ARCHIVE_WARN;
 		}
 		archive_strncpy(&(file->symlink), pp, len2);
-		cleanup_backslash(file->symlink.s, file->symlink.length);
 	}
 	/*
 	 * - Count up directory elements.
@@ -2427,9 +2405,9 @@ static void
 file_register(struct xar *xar, struct file *file)
 {
 	file->id = xar->file_idx++;
-        file->next = NULL;
-        *xar->file_list.last = file;
-        xar->file_list.last = &(file->next);
+	file->next = NULL;
+	*xar->file_list.last = file;
+	xar->file_list.last = &(file->next);
 }
 
 static void
@@ -2890,7 +2868,7 @@ compression_init_encoder_lzma(struct archive *a,
 		    "Cannot allocate memory");
 		r =  ARCHIVE_FATAL;
 		break;
-        default:
+	default:
 		free(strm);
 		lastrm->real_stream = NULL;
 		archive_set_error(a, ARCHIVE_ERRNO_MISC,
@@ -2967,7 +2945,7 @@ compression_init_encoder_xz(struct archive *a,
 		    "Cannot allocate memory");
 		r =  ARCHIVE_FATAL;
 		break;
-        default:
+	default:
 		free(strm);
 		lastrm->real_stream = NULL;
 		archive_set_error(a, ARCHIVE_ERRNO_MISC,

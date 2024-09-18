@@ -214,7 +214,6 @@ archive_write_v7tar_header(struct archive_write *a, struct archive_entry *entry)
 	char buff[512];
 	int ret, ret2;
 	struct v7tar *v7tar;
-	struct archive_entry *entry_main;
 	struct archive_string_conv *sconv;
 
 	v7tar = (struct v7tar *)a->format_data;
@@ -267,9 +266,6 @@ archive_write_v7tar_header(struct archive_write *a, struct archive_entry *entry)
 				archive_wstring_free(&ws);
 				return(ARCHIVE_FATAL);
 			}
-			/* Should we keep '\' ? */
-			if (wp[path_length -1] == L'\\')
-				path_length--;
 			archive_wstrncpy(&ws, wp, path_length);
 			archive_wstrappend_wchar(&ws, L'/');
 			archive_entry_copy_pathname_w(entry, ws.s);
@@ -295,15 +291,6 @@ archive_write_v7tar_header(struct archive_write *a, struct archive_entry *entry)
 				archive_string_free(&as);
 				return(ARCHIVE_FATAL);
 			}
-#if defined(_WIN32) && !defined(__CYGWIN__)
-			/* NOTE: This might break the pathname
-			 * if the current code page is CP932 and
-			 * the pathname includes a character '\'
-			 * as a part of its multibyte pathname. */
-			if (p[strlen(p) -1] == '\\')
-				path_length--;
-			else
-#endif
 			archive_strncpy(&as, p, path_length);
 			archive_strappend_char(&as, '/');
 			archive_entry_copy_pathname(entry, as.s);
@@ -311,30 +298,12 @@ archive_write_v7tar_header(struct archive_write *a, struct archive_entry *entry)
 		}
 	}
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Make sure the path separators in pathname, hardlink and symlink
-	 * are all slash '/', not the Windows path separator '\'. */
-	entry_main = __la_win_entry_in_posix_pathseparator(entry);
-	if (entry_main == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate v7tar data");
-		return(ARCHIVE_FATAL);
-	}
-	if (entry != entry_main)
-		entry = entry_main;
-	else
-		entry_main = NULL;
-#else
-	entry_main = NULL;
-#endif
 	ret = format_header_v7tar(a, buff, entry, 1, sconv);
 	if (ret < ARCHIVE_WARN) {
-		archive_entry_free(entry_main);
 		return (ret);
 	}
 	ret2 = __archive_write_output(a, buff, 512);
 	if (ret2 < ARCHIVE_WARN) {
-		archive_entry_free(entry_main);
 		return (ret2);
 	}
 	if (ret2 < ret)
@@ -342,7 +311,6 @@ archive_write_v7tar_header(struct archive_write *a, struct archive_entry *entry)
 
 	v7tar->entry_bytes_remaining = archive_entry_size(entry);
 	v7tar->entry_padding = 0x1ff & (-(int64_t)v7tar->entry_bytes_remaining);
-	archive_entry_free(entry_main);
 	return (ret);
 }
 

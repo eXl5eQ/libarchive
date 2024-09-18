@@ -76,6 +76,15 @@ archive_set_format_option(struct archive *_a, const char *m, const char *o,
 {
 	struct archive_write *a = (struct archive_write *)_a;
 
+	if (m == NULL && strcmp(o, "replace-backslash") == 0) {
+		if (v == NULL)
+			a->replace_backslash = 0;
+		else if (strlen(v) <= 1)
+			a->replace_backslash = v[0];
+		else
+			return (ARCHIVE_WARN);
+		return (ARCHIVE_OK);
+	}
 	if (a->format_name == NULL)
 		return (m == NULL)?ARCHIVE_FAILED:ARCHIVE_WARN - 1;
 	/* If the format name didn't match, return a special code for

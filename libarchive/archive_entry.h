@@ -721,6 +721,14 @@ __LA_DECL void archive_entry_linkify(struct archive_entry_linkresolver *,
     struct archive_entry **, struct archive_entry **);
 __LA_DECL struct archive_entry *archive_entry_partial_links(
     struct archive_entry_linkresolver *res, unsigned int *links);
+
+/*
+ * If either `pathname` or `linkname` in `src` contains '\', replace it with `c`, and store the result into `dst`.
+ * Otherwise, `dst` is not touched.
+ * Before writing to `dst`, if it points to `NULL`, init it as a clone of `src`.
+ */
+int archive_entry_fix_path(struct archive_entry *src, struct archive_entry **dst, char c);
+
 #ifdef __cplusplus
 }
 #endif

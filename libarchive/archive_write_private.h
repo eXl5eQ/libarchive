@@ -130,6 +130,8 @@ struct archive_write {
 	char		*passphrase;
 	archive_passphrase_callback *passphrase_callback;
 	void		*passphrase_client_data;
+
+	char         replace_backslash;
 };
 
 /*

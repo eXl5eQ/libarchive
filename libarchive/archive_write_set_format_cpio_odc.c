@@ -281,29 +281,11 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	int64_t	ino;
 	char h[76];
 	struct archive_string_conv *sconv;
-	struct archive_entry *entry_main;
 	size_t len;
 
 	cpio = (struct cpio *)a->format_data;
 	ret_final = ARCHIVE_OK;
 	sconv = get_sconv(a);
-
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Make sure the path separators in pathname, hardlink and symlink
-	 * are all slash '/', not the Windows path separator '\'. */
-	entry_main = __la_win_entry_in_posix_pathseparator(entry);
-	if (entry_main == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate ustar data");
-		return(ARCHIVE_FATAL);
-	}
-	if (entry != entry_main)
-		entry = entry_main;
-	else
-		entry_main = NULL;
-#else
-	entry_main = NULL;
-#endif
 
 	ret = archive_entry_pathname_l(entry, &path, &len, sconv);
 	if (ret != 0) {
@@ -408,7 +390,6 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 		}
 	}
 exit_write_header:
-	archive_entry_free(entry_main);
 	return (ret_final);
 }
 

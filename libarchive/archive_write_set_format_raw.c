@@ -39,7 +39,7 @@ static int	archive_write_raw_header(struct archive_write *,
 		    struct archive_entry *);
 
 struct raw {
-        int entries_written;
+	int entries_written;
 };
 
 /*
@@ -66,12 +66,12 @@ archive_write_set_format_raw(struct archive *_a)
 	raw->entries_written = 0;
 	a->format_data = raw;
 	a->format_name = "raw";
-        /* no options exist for this format */
+	/* no options exist for this format */
 	a->format_options = NULL;
 	a->format_write_header = archive_write_raw_header;
 	a->format_write_data = archive_write_raw_data;
 	a->format_finish_entry = NULL;
-        /* nothing needs to be done on closing */
+	/* nothing needs to be done on closing */
 	a->format_close = NULL;
 	a->format_free = archive_write_raw_free;
 	a->archive.archive_format = ARCHIVE_FORMAT_RAW;

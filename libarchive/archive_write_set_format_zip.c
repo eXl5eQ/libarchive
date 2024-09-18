@@ -589,16 +589,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		}
 	}
 
-
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Make sure the path separators in pathname, hardlink and symlink
-	 * are all slash '/', not the Windows path separator '\'. */
-	zip->entry = __la_win_entry_in_posix_pathseparator(entry);
-	if (zip->entry == entry)
-		zip->entry = archive_entry_clone(entry);
-#else
 	zip->entry = archive_entry_clone(entry);
-#endif
 	if (zip->entry == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate zip header data");
@@ -1676,7 +1667,7 @@ init_winzip_aes_encryption(struct archive_write *a)
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Failed to initialize HMAC-SHA1");
 		return (ARCHIVE_FAILED);
-        }
+	}
 
 	/* Set a password verification value after the 'salt'. */
 	salt[salt_len] = derived_key[key_len * 2];

@@ -218,7 +218,7 @@ archive_entry_clone(struct archive_entry *entry)
 	copy_digest(entry2, entry, sha512);
 
 #undef copy_digest
-	
+
 	/* Copy ACL data over. */
 	archive_acl_copy(&entry2->acl, &entry->acl);
 
@@ -2260,6 +2260,68 @@ ae_wcstofflags(const wchar_t *s, unsigned long *setp, unsigned long *clrp)
 
 	/* Return location of first failure. */
 	return (failed);
+}
+
+int
+archive_entry_fix_path(struct archive_entry *src, struct archive_entry **dst, char c)
+{
+	if (!c || c == '\\') return (0);
+	errno = 0;
+
+	struct archive_mstring buf;
+	int r, new = 0;
+	memset(&buf, 0, sizeof(buf));
+
+	r = archive_mstring_replace_backslash(&buf, &src->ae_pathname, c);
+	switch (r) {
+	case 0: /* Not replaced. */
+		break;
+	case 1: /* Replaced. */
+		if (*dst == NULL) {
+			if ((*dst = archive_entry_clone(src)) == NULL) {
+				r = ARCHIVE_FAILED;
+				errno = ENOMEM;
+				goto fail;
+			}
+			new = 1;
+		}
+		archive_mstring_swap(&(*dst)->ae_pathname, &buf);
+		break;
+	default:
+		goto fail;
+	}
+
+	if (src->ae_set & (AE_SET_HARDLINK | AE_SET_SYMLINK)) {
+		r = archive_mstring_replace_backslash(&buf, &src->ae_linkname, c);
+		switch (r) {
+		case 0: /* Not replaced. */
+			break;
+		case 1: /* Replaced. */
+			if (*dst == NULL) {
+				if ((*dst = archive_entry_clone(src)) == NULL) {
+					r = ARCHIVE_FAILED;
+					errno = ENOMEM;
+					goto fail;
+				}
+				new = 1;
+			}
+			archive_mstring_swap(&(*dst)->ae_linkname, &buf);
+			break;
+		default:
+			goto fail;
+		}
+	}
+
+	archive_mstring_clean(&buf);
+	return (ARCHIVE_OK);
+
+	fail:
+	archive_mstring_clean(&buf);
+	if (new) {
+		archive_entry_free(*dst);
+		*dst = NULL;
+	}
+	return (r);
 }
 
 

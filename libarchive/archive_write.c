@@ -120,6 +120,9 @@ archive_write_new(void)
 		return (NULL);
 	}
 	a->nulls = nulls;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	a->replace_backslash = '/';
+#endif
 	return (&a->archive);
 }
 
@@ -735,6 +738,7 @@ static int
 _archive_write_header(struct archive *_a, struct archive_entry *entry)
 {
 	struct archive_write *a = (struct archive_write *)_a;
+	struct archive_entry *entry_newpath = NULL;
 	int ret, r2;
 
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
@@ -779,8 +783,18 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	if (r2 < ret)
 		ret = r2;
 
+	r2 = archive_entry_fix_path(entry, &entry_newpath, a->replace_backslash);
+    if (r2 != ARCHIVE_OK) {
+    	archive_set_error(&a->archive, errno, "Can't modify path");
+    	return (r2);
+    }
 	/* Format and write header. */
-	r2 = ((a->format_write_header)(a, entry));
+	if (entry_newpath != NULL) {
+		r2 = ((a->format_write_header)(a, entry_newpath));
+		archive_entry_free(entry_newpath);
+	} else {
+		r2 = ((a->format_write_header)(a, entry));
+	}
 	if (r2 == ARCHIVE_FAILED) {
 		return (ARCHIVE_FAILED);
 	}
