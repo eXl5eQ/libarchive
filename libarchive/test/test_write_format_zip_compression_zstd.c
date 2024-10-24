@@ -342,9 +342,13 @@ static void verify_zstd_contents(const char *buff, size_t used)
 	/* Close archive, in case. */
 	archive_read_free(zip_archive);
 }
-
+#endif
 DEFINE_TEST(test_write_format_zip_compression_zstd)
 {
+#ifndef HAVE_ZSTD_H
+	skipping("This build does not include ZSTD");
+}
+#else
 	/* Buffer data */
 	struct archive *a;
 	char buff[100000];

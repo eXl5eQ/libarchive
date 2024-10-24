@@ -342,9 +342,13 @@ static void verify_bzip2_contents(const char *buff, size_t used)
 	/* Close archive, in case. */
 	archive_read_free(zip_archive);
 }
-
+#endif
 DEFINE_TEST(test_write_format_zip_compression_bzip2)
 {
+#ifndef HAVE_BZLIB_H
+	skipping("This build does not include BZLIB");
+}
+#else
 	/* Buffer data */
 	struct archive *a;
 	char buff[100000];

@@ -327,9 +327,13 @@ static void verify_lzma_contents(const char *buff, size_t used)
 {
 	verify_xz_lzma(buff, used, 14, 0xA);
 }
-
+#endif
 DEFINE_TEST(test_write_format_zip_compression_lzmaxz)
 {
+#ifndef HAVE_LZMA_H
+	skipping("This build does not include LZMA");
+}
+#else
 	/* Buffer data */
 	struct archive *a;
 	char buff[100000];
